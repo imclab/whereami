@@ -58,6 +58,9 @@ from urllib import urlencode
 from sys import stdout as out, stderr as err
 from math import log, tan, pi, atan, pow, e
 
+import json
+import cgi
+
 url = 'http://www.openstreetmap.org/'
 
 def proj_command():
@@ -154,7 +157,8 @@ def do_merc_box(xmin, ymin, xmax, ymax, include_tile=True):
     """
     minlat, minlon = unproject(xmin, ymin)
     maxlat, maxlon = unproject(xmax, ymax)
-    do_latlon_box(minlat, minlon, maxlat, maxlon, include_tile)
+
+    return do_latlon_box(minlat, minlon, maxlat, maxlon, include_tile)
 
 def tile_box(row, column, zoom):
     """
@@ -164,12 +168,10 @@ def tile_box(row, column, zoom):
     southwest = provider.coordinateLocation(coord.down())
     northeast = provider.coordinateLocation(coord.right())
     
-    do_latlon_box(southwest.lat, southwest.lon, northeast.lat, northeast.lon, False)
+    return do_latlon_box(southwest.lat, southwest.lon, northeast.lat, northeast.lon, False)
 
-if __name__ == '__main__':
+def whereami(args):
 
-    args = sys.argv[1:]
-    
     args, _args = [], args
     
     for arg in _args:
@@ -183,38 +185,52 @@ if __name__ == '__main__':
         try:
             args = [float(a.rstrip(',')) for a in args]
         except ValueError:
-            print >> err, 'Two or three values are expected to be numeric: a point and optional zoom.', args
-            sys.exit(1)
+            return { 'ok': 0, 'error': 'Two or three values are expected to be numeric: a point and optional zoom.' }
 
         zoom = len(args) == 3 and args[2] or 8
 
         if is_latlon(*args[0:2]):
             lat, lon = args[0:2]
-            do_latlon_point(lat, lon, zoom)
+            return do_latlon_point(lat, lon, zoom)
 
         else:
             x, y = args[0:2]
-            do_merc_point(x, y, zoom)
+            return do_merc_point(x, y, zoom)
 
     elif len(args) is 4:
         try:
             args = [float(a.rstrip(',')) for a in args]
         except ValueError:
-            print >> err, 'Four values are expected to be numeric: two points.', args
-            sys.exit(1)
+            return { 'ok': 'Four values are expected to be numeric: two points.' }
 
         if is_latlon(*args[0:2]) and is_latlon(*args[2:4]):
             minlat, maxlat = min(args[0], args[2]), max(args[0], args[2])
             minlon, maxlon = min(args[1], args[3]), max(args[1], args[3])
-            do_latlon_box(minlat, minlon, maxlat, maxlon)
+
+            return do_latlon_box(minlat, minlon, maxlat, maxlon)
 
         elif is_latlon(*args[0:2]) or is_latlon(*args[2:4]):
-            raise Exception("Looks like you're mixing mercator and lat, lon?")
+            return { 'ok': 0, 'error': "Looks like you're mixing mercator and lat, lon?" }
 
         else:
             xmin, xmax = min(args[0], args[2]), max(args[0], args[2])
             ymin, ymax = min(args[1], args[3]), max(args[1], args[3])
-            do_merc_box(xmin, ymin, xmax, ymax)
+            return do_merc_box(xmin, ymin, xmax, ymax)
 
     else:
-        print >> err, "Sorry I'm not sure what to do with this input.", args
+        return { 'ok': 0, "error": "Sorry I'm not sure what to do with this input." }
+
+def app(environ, start_response):
+
+    params = cgi.parse_qs(environ.get('QUERY_STRING', ''))
+
+    args = []
+    rsp = whereami(args)
+
+if __name__ == '__main__':
+
+    args = sys.argv[1:]
+    
+    rsp = whereami(args)
+    print rsp
+
