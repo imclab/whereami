@@ -127,16 +127,9 @@ def do_latlon_point(lat, lon, zoom):
 
     return {
         'mercator': '%.2f %.2f' % project(lat, lon),
-        'tile': '%(zoom)d/%(column)d/%(row)d' % coord.__dict__,
+        'in tile': '%(zoom)d/%(column)d/%(row)d' % coord.__dict__,
         'url': get_point_map_url(lat, lon, zoom)
         }
-
-    """
-    print >> err, 'mercator: %.2f %.2f' % project(lat, lon)
-    print >> err, 'in tile:  %(zoom)d/%(column)d/%(row)d' % coord.__dict__
-    print >> err, ''
-    print >> out, get_point_map_url(lat, lon, zoom)
-    """
 
 def do_merc_point(x, y, zoom):
     """
@@ -148,18 +141,10 @@ def do_merc_point(x, y, zoom):
     coord = provider.locationCoordinate(location).zoomTo(zoom).container()
 
     return{
-        'lat': '%.8f' % lat,
-        'lon': '%.8f' % lon,
-        'tile': '%(zoom)d/%(column)d/%(row)d' % coord.__dict__,
+        'lat, lon': '%.8f %.8f' % (lat, lon),
+        'in tile': '%(zoom)d/%(column)d/%(row)d' % coord.__dict__,
         'url': get_point_map_url(lat, lon, zoom, coord)
         }
-
-    """
-    print >> err, 'lat, lon: %.8f %.8f' % (lat, lon)
-    print >> err, 'in tile:  %(zoom)d/%(column)d/%(row)d' % coord.__dict__
-    print >> err, ''
-    print >> out, get_point_map_url(lat, lon, zoom, coord)
-    """
 
 def do_latlon_box(minlat, minlon, maxlat, maxlon):
     """
@@ -172,15 +157,6 @@ def do_latlon_box(minlat, minlon, maxlat, maxlon):
         'lower-right': '%.2f %.2f' % project(minlat, maxlon),
         'url': get_box_map_url(minlat, minlon, maxlat, maxlon)
         }
-
-    """
-    print >> err, 'southwest:   %.8f %.8f' % (minlat, minlon)
-    print >> err, 'northeast:   %.8f %.8f' % (maxlat, maxlon)
-    print >> err, 'upper-left:  %.2f %.2f' % project(maxlat, minlon)
-    print >> err, 'lower-right: %.2f %.2f' % project(minlat, maxlon)
-    print >> err, ''
-    print >> out, get_box_map_url(minlat, minlon, maxlat, maxlon)
-    """
 
 def do_merc_box(xmin, ymin, xmax, ymax, include_tile=True):
     """
