@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 Sanity-check locations in lat, lon or mercator forms.
 
@@ -123,10 +125,18 @@ def do_latlon_point(lat, lon, zoom):
     location = ModestMaps.Geo.Location(lat, lon)
     coord = provider.locationCoordinate(location).zoomTo(zoom).container()
 
+    return {
+        'mercator': '%.2f %.2f' % project(lat, lon),
+        'tile': '%(zoom)d/%(column)d/%(row)d' % coord.__dict__,
+        'url': get_point_map_url(lat, lon, zoom)
+        }
+
+    """
     print >> err, 'mercator: %.2f %.2f' % project(lat, lon)
     print >> err, 'in tile:  %(zoom)d/%(column)d/%(row)d' % coord.__dict__
     print >> err, ''
     print >> out, get_point_map_url(lat, lon, zoom)
+    """
 
 def do_merc_point(x, y, zoom):
     """
@@ -137,13 +147,32 @@ def do_merc_point(x, y, zoom):
     location = ModestMaps.Geo.Location(lat, lon)
     coord = provider.locationCoordinate(location).zoomTo(zoom).container()
 
+    return{
+        'lat': '%.8f' % lat,
+        'lon': '%.8f' % lon,
+        'tile': '%(zoom)d/%(column)d/%(row)d' % coord.__dict__,
+        'url': get_point_map_url(lat, lon, zoom, coord)
+        }
+
+    """
     print >> err, 'lat, lon: %.8f %.8f' % (lat, lon)
     print >> err, 'in tile:  %(zoom)d/%(column)d/%(row)d' % coord.__dict__
     print >> err, ''
     print >> out, get_point_map_url(lat, lon, zoom, coord)
+    """
 
 def do_latlon_box(minlat, minlon, maxlat, maxlon):
     """
+    """
+
+    return {
+        'southwest': '%.8f %.8f' % (minlat, minlon),
+        'northeast': '%.8f %.8f' % (maxlat, maxlon),
+        'upper-left': '%.2f %.2f' % project(maxlat, minlon),
+        'lower-right': '%.2f %.2f' % project(minlat, maxlon),
+        'url': get_box_map_url(minlat, minlon, maxlat, maxlon)
+        }
+
     """
     print >> err, 'southwest:   %.8f %.8f' % (minlat, minlon)
     print >> err, 'northeast:   %.8f %.8f' % (maxlat, maxlon)
@@ -151,6 +180,7 @@ def do_latlon_box(minlat, minlon, maxlat, maxlon):
     print >> err, 'lower-right: %.2f %.2f' % project(minlat, maxlon)
     print >> err, ''
     print >> out, get_box_map_url(minlat, minlon, maxlat, maxlon)
+    """
 
 def do_merc_box(xmin, ymin, xmax, ymax, include_tile=True):
     """
@@ -185,7 +215,7 @@ def whereami(args):
         try:
             args = [float(a.rstrip(',')) for a in args]
         except ValueError:
-            return { 'ok': 0, 'error': 'Two or three values are expected to be numeric: a point and optional zoom.' }
+            raise Exception, 'Two or three values are expected to be numeric: a point and optional zoom.'
 
         zoom = len(args) == 3 and args[2] or 8
 
@@ -201,7 +231,7 @@ def whereami(args):
         try:
             args = [float(a.rstrip(',')) for a in args]
         except ValueError:
-            return { 'ok': 'Four values are expected to be numeric: two points.' }
+            raise Exception, 'Four values are expected to be numeric: two points.'
 
         if is_latlon(*args[0:2]) and is_latlon(*args[2:4]):
             minlat, maxlat = min(args[0], args[2]), max(args[0], args[2])
@@ -210,7 +240,7 @@ def whereami(args):
             return do_latlon_box(minlat, minlon, maxlat, maxlon)
 
         elif is_latlon(*args[0:2]) or is_latlon(*args[2:4]):
-            return { 'ok': 0, 'error': "Looks like you're mixing mercator and lat, lon?" }
+            raise Exception, "Looks like you're mixing mercator and lat, lon?"
 
         else:
             xmin, xmax = min(args[0], args[2]), max(args[0], args[2])
@@ -218,19 +248,43 @@ def whereami(args):
             return do_merc_box(xmin, ymin, xmax, ymax)
 
     else:
-        return { 'ok': 0, "error": "Sorry I'm not sure what to do with this input." }
+        raise Exception, "Sorry I'm not sure what to do with this input."
 
 def app(environ, start_response):
 
     params = cgi.parse_qs(environ.get('QUERY_STRING', ''))
 
     args = []
-    rsp = whereami(args)
+
+    status = '200 OK'
+
+    try:
+        rsp = whereami(args)
+    except Exception, e:
+        status = '500 SERVER ERROR'
+        rsp = {'error': e }
+
+    rsp = json.dumps(rsp)
+
+    start_response(status, [
+            ("Content-Type", "text/javascript"),
+            ("Content-Length", str(len(rsp)))
+            ])
+
+    return iter([rsp])
 
 if __name__ == '__main__':
 
     args = sys.argv[1:]
-    
-    rsp = whereami(args)
-    print rsp
+
+    try:
+        rsp = whereami(args)
+    except Exception, e:
+        print e
+        sys.exit()
+
+    for k,v in rsp.items():
+        print "%s: %s" % (k, v)
+
+    sys.exit()
 
