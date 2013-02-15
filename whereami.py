@@ -282,11 +282,21 @@ if __name__ == '__main__':
     try:
         rsp = whereami(args)
     except Exception, e:
-        print e
-        sys.exit()
+        print >> err, e, args
+        sys.exit(1)
 
     for k,v in rsp.items():
-        print "%s: %s" % (k, v)
+
+        output = "%s: %s" % (k, v)
+        
+        if k == 'url':
+            continue
+        else:
+            print >> err, output
+
+    if rsp.get('url', False):
+        print >> err, ''
+        print >> out, rsp['url']
 
     sys.exit()
 
