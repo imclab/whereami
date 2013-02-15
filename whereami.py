@@ -252,9 +252,11 @@ def whereami(args):
 
 def app(environ, start_response):
 
-    params = cgi.parse_qs(environ.get('QUERY_STRING', ''))
+    # params = cgi.parse_qs(environ.get('QUERY_STRING', ''))
 
-    args = []
+    path = environ.get('PATH_INFO')
+    path = path.lstrip("/")
+    args = path.split('/')
 
     status = '200 OK'
 
@@ -262,7 +264,7 @@ def app(environ, start_response):
         rsp = whereami(args)
     except Exception, e:
         status = '500 SERVER ERROR'
-        rsp = {'error': e }
+        rsp = {'error': str(e)}
 
     rsp = json.dumps(rsp)
 
